@@ -7,12 +7,13 @@ from sklearn.model_selection import train_test_split
 from utils import seed_everything, DEVICE
 from data_utils import *  
 from methods import * 
-# (run_split, run_plcp, run_gaussian_scoring, run_cqr, run_rcp, run_rcp_multi_head, run_rcp_density_improved)
+
 
 # Suppress warnings
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="threadpoolctl")
 
+# Data split
 def rcp_protocol_split(X, Y, cal_size=0.2, seed=42):
     """Splits data into Training, Calibration, and Test sets."""
     # Convert cal_size fraction to int if needed, here simplified
@@ -21,6 +22,8 @@ def rcp_protocol_split(X, Y, cal_size=0.2, seed=42):
     X_tr, X_te, Y_tr, Y_te = train_test_split(X_rem, Y_rem, test_size=0.3, random_state=seed)
     return X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te
 
+
+# main function
 def run_benchmark_suite():
     seed_everything(42)
     print(f"Using Device: {DEVICE}")

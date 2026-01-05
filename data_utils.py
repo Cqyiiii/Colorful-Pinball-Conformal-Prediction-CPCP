@@ -6,31 +6,7 @@ import pandas as pd
 from scipy.io import arff
 from sklearn.preprocessing import StandardScaler
 
-# --- Helper Functions ---
-
-def download_file(url, save_name):
-    if os.path.exists(save_name):
-        return
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        r = requests.get(url, headers=headers, timeout=60)
-        r.raise_for_status()
-        with open(save_name, 'wb') as f:
-            f.write(r.content)
-    except Exception as e:
-        raise RuntimeError(f"Failed to download {url}: {e}")
-
-def load_arff_data(filename):
-    try:
-        data, meta = arff.loadarff(filename)
-        df = pd.DataFrame(data)
-        for col in df.select_dtypes([object]):
-            df[col] = df[col].str.decode('utf-8')
-        return df
-    except Exception as e:
-        raise RuntimeError(f"Failed to parse ARFF {filename}: {e}")
-
-# --- Standard Regression Datasets ---
+# Loader for datasets in ./Datasets
 
 def load_diamonds(path_prefix="./Datasets/"):
     save_name = "diamonds.csv"

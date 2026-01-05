@@ -1,11 +1,13 @@
 import torch
 import torch.nn as nn
 
+# naive pinball loss
 def pinball_loss(y_pred, y_true, tau):
     """Standard quantile regression loss."""
     diff = y_true - y_pred
     return torch.max(tau * diff, (tau - 1) * diff)
 
+# asymmetric laplace distribution negative log likelihood for CQR
 def ald_loss_cqr_nd(preds, y_true, taus):
     """Loss for CQR (N-dimensional) with Aleatoric uncertainty estimation."""
     D = y_true.shape[1]
@@ -17,13 +19,14 @@ def ald_loss_cqr_nd(preds, y_true, taus):
     nll = (loss / sigma) + 2 * torch.log(sigma)
     return nll.mean()
 
+# asymmetric laplace distribution negative log likelihood for RCP
 def ald_loss_rcp(preds, s_true, tau):
     """Loss for Rectified Conformal Prediction score regression."""
     q = preds[:, 0:1]
     sigma = nn.Softplus()(preds[:, 1:2]) + 1e-4
     return (pinball_loss(q, s_true, tau) / sigma + torch.log(sigma)).mean()
 
-
+# NLL loss of Gaussian, robust version for better numerical stability
 def multivariate_nll_loss_robust(mu, L, y_true):
     diag_elements = torch.diagonal(L, dim1=1, dim2=2)
     log_det = 2 * torch.sum(torch.log(diag_elements + 1e-6), dim=1) 
@@ -37,6 +40,7 @@ def multivariate_nll_loss_robust(mu, L, y_true):
     loss = 0.5 * (log_det + mahalanobis_sq).mean()
     return loss
 
+# NLL loss of Gaussian
 def multivariate_nll_loss(mu, L, y_true):
     """
     Negative Log Likelihood for Multivariate Gaussian.
