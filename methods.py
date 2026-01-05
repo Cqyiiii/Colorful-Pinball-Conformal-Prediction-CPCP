@@ -3,13 +3,12 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-from models import Net, ALDNet, PLCPNet, MonotonicThreeHeadNet, MultivariateGaussianNet
-from trainers import (train_mean, train_cqr_nd, train_rcp_score, train_plcp_model, 
-                      train_rcp_multi_head, train_multivariate_gaussian, 
-                      train_three_head_base, finetune_main_head_improved)
-from metrics import get_metrics_nd, wsc_unbiased, ConditionalCoverageComputer
+from models import *
+from trainers import *
+from metrics import *
 from utils import to_tensor, to_numpy, DEVICE
 
+# Split conformal prediction
 def run_split(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha):
     D = Y_tr.shape[1]
     mu_net = Net(X_tr.shape[1], D).to(DEVICE)
@@ -24,6 +23,7 @@ def run_split(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha):
         y_lo, y_hi = mu_te - q, mu_te + q
     return get_metrics_nd(Y_te, y_lo, y_hi, X_te, alpha)
 
+# CQR
 def run_cqr(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha, mode='pinball'):
     D = Y_tr.shape[1]
     taus = [alpha/2, 1-alpha/2]
@@ -66,7 +66,7 @@ def run_cqr(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha, mode='pinball'):
         
     return get_metrics_nd(Y_te, y_lo, y_hi, X_te, alpha)
 
-
+# Gaussian-scoring
 def run_gaussian_scoring(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha):
     D = Y_tr.shape[1]
     model = MultivariateGaussianNet(X_tr.shape[1], D).to(DEVICE)
@@ -106,7 +106,7 @@ def run_gaussian_scoring(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha):
 
 
 
-
+# Gaussian scoring with better numerical stability
 def run_gaussian_scoring_robust(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha):
     D = Y_tr.shape[1]
     scaler = StandardScaler()
@@ -153,7 +153,7 @@ def run_gaussian_scoring_robust(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha):
     return {"Cov": cov_val, "Size": size_val, "WSC": wsc_val, "CCE": cce_val}
 
 
-
+# RCP 
 def run_rcp(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha, mode='pinball'):
     D = Y_tr.shape[1]
     mu_net = Net(X_tr.shape[1], D).to(DEVICE)
@@ -179,6 +179,7 @@ def run_rcp(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha, mode='pinball'):
         y_lo, y_hi = mu_te - width, mu_te + width
     return get_metrics_nd(Y_te, y_lo, y_hi, X_te, alpha)
 
+# Only multi-task part for ablation study
 def run_rcp_multi_head(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha):
     D = Y_tr.shape[1]
     mu_net = Net(X_tr.shape[1], D).to(DEVICE)
@@ -204,6 +205,7 @@ def run_rcp_multi_head(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha):
         y_lo, y_hi = mu_te - width, mu_te + width
     return get_metrics_nd(Y_te, y_lo, y_hi, X_te, alpha)
 
+# Partition learning conformal prediction
 def run_plcp(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha, n_groups, score_type):
     D = Y_tr.shape[1]
     mu_net = Net(X_tr.shape[1], D).to(DEVICE)
@@ -237,6 +239,8 @@ def run_plcp(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha, n_groups, score_type):
         y_lo, y_hi = mu_te - q_te, mu_te + q_te
     return get_metrics_nd(Y_te, y_lo, y_hi, X_te, alpha)
 
+
+# CPCP with better stability, loss mixing + weight clip
 def run_rcp_density_improved(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha, 
                              epsilon=0.02, mode='vanilla', clip_max=5.0, mix_ratio=1.0,
                              dataset_name="unknown", seed=0):

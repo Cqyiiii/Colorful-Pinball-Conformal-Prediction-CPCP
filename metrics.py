@@ -4,12 +4,14 @@ from sklearn.model_selection import train_test_split
 from sklearn.cluster import KMeans
 from utils import to_numpy
 
+# helper function for WSC
 def sample_sphere(n, p, random_state):
     rng = np.random.default_rng(random_state)
     v = rng.normal(0, 1, size=(p, n))
     v /= np.linalg.norm(v, axis=0)
     return v.T
 
+# WSC metric, M: num of projection vectors
 def wsc_unbiased(X, covered, eta=0.2, M=1000, test_size=0.75, random_state=42):
     """Computes Worst-Slice Coverage."""
     if len(X) < 100: return 0.0 
@@ -38,6 +40,7 @@ def wsc_unbiased(X, covered, eta=0.2, M=1000, test_size=0.75, random_state=42):
     if np.sum(valid) == 0: return 1.0
     return np.mean(cov_test[valid])
 
+
 class ConditionalCoverageComputer:
     """Computes Conditional Coverage Error (CCE) via partition-based approximation."""
     def __init__(self, X, nb_partitions=10, random_state=42):
@@ -55,6 +58,7 @@ class ConditionalCoverageComputer:
                 w = c / total_len
                 err += w * (np.mean(coverages[mask]) - (1-alpha))**2
         return err
+
 
 def get_metrics_nd(y_test, y_lo, y_hi, x_test, alpha=0.1):
     """Calculates all metrics for N-dimensional regression."""
