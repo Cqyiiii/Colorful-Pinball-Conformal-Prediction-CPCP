@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -89,7 +90,6 @@ def run_gaussian_scoring(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha):
         z_te = torch.linalg.solve_triangular(L_te, diff_te.unsqueeze(2), upper=False).squeeze(2)
         test_scores = torch.norm(z_te, p=2, dim=1).cpu().numpy()
         covered = (test_scores <= q)
-        cov_val = np.mean(covered)
         
         # Size Calculation
         diag_L = torch.diagonal(L_te, dim1=1, dim2=2)
@@ -98,59 +98,95 @@ def run_gaussian_scoring(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha):
         log_vol_diameter = log_vol_radius + D * np.log(2) 
         size_val = np.mean(log_vol_diameter) / D
         
-        wsc_val = wsc_unbiased(X_te, covered)
-        cce_computer = ConditionalCoverageComputer(X_te, nb_partitions=50)
-        cce_val = cce_computer.compute_error(covered, alpha)
-        
-    return {"Cov": cov_val, "Size": size_val, "WSC": wsc_val, "CCE": cce_val}
+    # Use unified metrics function with pre-calculated coverage and size
+    return get_metrics_nd(Y_te, None, None, X_te, alpha, covered=covered, size_metric=size_val)
 
 
-
-# Gaussian scoring with better numerical stability
+# Gaussian scoring with better numerical stability, on WEC dataset (high-dimensional and colinearity) 
 def run_gaussian_scoring_robust(X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te, alpha):
+    """
+    Robust Gaussian Scoring with Softplus diagonal correction and safe log-volume calculation.
+    """
     D = Y_tr.shape[1]
     scaler = StandardScaler()
     Y_tr_s = scaler.fit_transform(Y_tr)
     Y_cal_s = scaler.transform(Y_cal)
     Y_te_s = scaler.transform(Y_te)
+
+    # 1. Pre-calculate scaler log-sum safely to prevent -inf if variance is near zero
+    scale_safe = scaler.scale_.copy()
+    scale_safe[scale_safe < 1e-6] = 1.0 
+    log_scale_sum = np.sum(np.log(scale_safe))
+
     model = MultivariateGaussianNet(X_tr.shape[1], D).to(DEVICE)
     train_multivariate_gaussian(model, to_tensor(X_tr), to_tensor(Y_tr_s), epochs=200)
     model.eval()
-    # Calibration
+
+    diag_idx = torch.arange(D).to(DEVICE)
+
+    # Helper to enforce positive definite L matrix
+    def ensure_pos_diag(L_tensor):
+        diags = L_tensor[:, diag_idx, diag_idx]
+        # Softplus guarantees positivity (unlike += 1e-3 which fails for negative outputs)
+        L_tensor[:, diag_idx, diag_idx] = F.softplus(diags) + 1e-6
+        return L_tensor
+
+    # --- Calibration ---
     with torch.no_grad():
         mu_cal, L_cal = model(to_tensor(X_cal))        
-        diag_idx = torch.arange(D)
-        L_cal[:, diag_idx, diag_idx] += 1e-3 
+        L_cal = ensure_pos_diag(L_cal) # Apply stability fix
+
         diff_cal = to_tensor(Y_cal_s) - mu_cal
-        z_cal = torch.linalg.solve_triangular(L_cal, diff_cal.unsqueeze(2), upper=False).squeeze(2)
+        
+        # Solve L*z = y - mu
+        # Using try-except is recommended for high-dim matrices (optional but safer)
+        try:
+            z_cal = torch.linalg.solve_triangular(L_cal, diff_cal.unsqueeze(2), upper=False).squeeze(2)
+        except RuntimeError:
+            # Fallback for singular matrix
+            return {'Cov': 0, 'Size': np.nan, 'WSC': 0, 'MSCE_30': 0, 'MSCE_10': 0, 'L1-ERT': 0, 'L2-ERT': 0}
+
         scores = torch.norm(z_cal, p=2, dim=1).cpu().numpy()        
         scores = scores[np.isfinite(scores)]
-        if len(scores) == 0: return {'Cov': 0, 'Size': np.nan, 'WSC': 0, 'CCE': 0}        
+        
+        if len(scores) == 0: 
+            return {'Cov': 0, 'Size': np.nan, 'WSC': 0, 'MSCE_30': 0, 'MSCE_10': 0, 'L1-ERT': 0, 'L2-ERT': 0}        
+        
         n = len(scores)
         q = np.quantile(scores, np.ceil((1-alpha)*(n+1))/n)
         
-    # Inference
+    # --- Inference ---
     with torch.no_grad():
         mu_te, L_te = model(to_tensor(X_te))        
-        L_te[:, diag_idx, diag_idx] += 1e-3
+        L_te = ensure_pos_diag(L_te) # Apply stability fix
+
         diff_te = to_tensor(Y_te_s) - mu_te
         z_te = torch.linalg.solve_triangular(L_te, diff_te.unsqueeze(2), upper=False).squeeze(2)
         test_scores = torch.norm(z_te, p=2, dim=1).cpu().numpy()        
         test_scores = np.nan_to_num(test_scores, nan=np.inf)        
-        covered = (test_scores <= q)
-        cov_val = np.mean(covered)        
-        # Size Calculation
-        diag_L = torch.diagonal(L_te, dim1=1, dim2=2)
-        log_det_sigma = 2 * torch.sum(torch.log(diag_L + 1e-8), dim=1).cpu().numpy()
-        log_vol_radius = 0.5 * log_det_sigma + D * np.log(q + 1e-8)
-        log_vol_diameter = log_vol_radius + D * np.log(2)         
-        log_vol_diameter += np.sum(np.log(scaler.scale_))
-        size_val = np.mean(log_vol_diameter) / D        
-        wsc_val = wsc_unbiased(X_te, covered)
-        cce_computer = ConditionalCoverageComputer(X_te, nb_partitions=50)
-        cce_val = cce_computer.compute_error(covered, alpha)
         
-    return {"Cov": cov_val, "Size": size_val, "WSC": wsc_val, "CCE": cce_val}
+        covered = (test_scores <= q)
+            
+        # --- Robust Size Calculation ---
+        # 1. Determinant part: 2 * sum(log(diag(L)))
+        # diag_L is now guaranteed positive via ensure_pos_diag, so no NaNs here
+        diag_L = torch.diagonal(L_te, dim1=1, dim2=2)
+        log_det_sigma = 2 * torch.sum(torch.log(diag_L), dim=1).cpu().numpy()
+        
+        # 2. Radius part: D * log(q)
+        # Handle case where q is extremely small (overfitting)
+        safe_q = max(q, 1e-8)
+        
+        log_vol_radius = 0.5 * log_det_sigma + D * np.log(safe_q)
+        log_vol_diameter = log_vol_radius + D * np.log(2)        
+        
+        # 3. Add scaler contribution
+        log_vol_diameter += log_scale_sum
+        
+        size_val = np.mean(log_vol_diameter) / D        
+        
+    # Use the existing interface as requested
+    return get_metrics_nd(Y_te, None, None, X_te, alpha, covered=covered, size_metric=size_val)
 
 
 # RCP 

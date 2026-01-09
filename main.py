@@ -1,8 +1,10 @@
 import os
+import time
 import warnings
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
+
 
 from utils import seed_everything, DEVICE
 from data_utils import *  
@@ -19,35 +21,35 @@ def rcp_protocol_split(X, Y, cal_size=0.2, seed=42):
     # Convert cal_size fraction to int if needed, here simplified
     n_cal = int(len(X) * cal_size)    
     X_rem, X_cal, Y_rem, Y_cal = train_test_split(X, Y, test_size=n_cal, random_state=seed)
-    X_tr, X_te, Y_tr, Y_te = train_test_split(X_rem, Y_rem, test_size=0.3, random_state=seed)
+    X_tr, X_te, Y_tr, Y_te = train_test_split(X_rem, Y_rem, test_size=0.25, random_state=seed)
     return X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te
 
 
-# main function
+# Main function
 def run_benchmark_suite():
     seed_everything(42)
     print(f"Using Device: {DEVICE}")
 
-    # Dataset Registry
+    # Dataset registry
     dataset_loaders = {    
-        "naval": load_naval,    
-        "gas_turbine":load_gas_turbine,
-        "diamond": load_diamonds,            
-        "superconduct": load_superconductivity,
         "bike": load_bike,
+        "diamond": load_diamonds,            
+        "gas_turbine":load_gas_turbine,        
+        "naval": load_naval,    
         "SGEMM": load_sgemm_product,                               
+        "superconduct": load_superconductivity,                
         "Transcoding": load_transcoding, 
-        "WEC": load_wec,                  
+        "WEC": load_wec,                 
     }
     
     alpha = 0.1
     n_seeds = 20
     
-    # Method Registry
+    # Method registry 
     methods = [
         ('Split', run_split),
-        ('PLCP-Pin-K20', lambda *a: run_plcp(*a, n_groups=20, score_type='pinball')),
-        ('PLCP-Pin-K50', lambda *a: run_plcp(*a, n_groups=50, score_type='pinball')),
+        ('PLCP-Pin-G20', lambda *a: run_plcp(*a, n_groups=20, score_type='pinball')),
+        ('PLCP-Pin-G50', lambda *a: run_plcp(*a, n_groups=50, score_type='pinball')),
         ('Gaussian-Scoring', run_gaussian_scoring),
         ('CQR-Pinball', lambda *a: run_cqr(*a, 'pinball')),
         ('CQR-ALD', lambda *a: run_cqr(*a, 'ald')),        
@@ -59,7 +61,12 @@ def run_benchmark_suite():
         ('CPCP-Split-0.02', lambda *a, **k: run_rcp_density_improved(*a, epsilon=0.02, mode='vanilla', **k)),                
         ('CPCP-Clip-0.02', lambda *a, **k: run_rcp_density_improved(*a, epsilon=0.02, mode='clip', clip_max=5.0, **k)),            
         ('CPCP-Mix-0.02', lambda *a, **k: run_rcp_density_improved(*a, epsilon=0.02, mode='mix', mix_ratio=0.5, **k)),
-        ('CPCP-Clip+Mix', lambda *a, **k: run_rcp_density_improved(*a, epsilon=0.02, mode='clip', clip_max=5.0, mix_ratio=0.5, **k)),
+        ('CPCP-Clip+Mix-0.02', lambda *a, **k: run_rcp_density_improved(*a, epsilon=0.02, mode='clip', clip_max=5.0, mix_ratio=0.5, **k)),
+        ## Ablation study on delta
+        # ('CPCP-Split-0.01', lambda *a, **k: run_rcp_density_improved(*a, epsilon=0.01, mode='vanilla', **k)),          
+        # ('CPCP-Clip+Mix-0.01', lambda *a, **k: run_rcp_density_improved(*a, epsilon=0.01, mode='clip', clip_max=5.0, mix_ratio=0.5, **k)),
+        # ('CPCP-Split-0.05', lambda *a, **k: run_rcp_density_improved(*a, epsilon=0.05, mode='vanilla', **k)),  
+        # ('CPCP-Clip+Mix-0.05', lambda *a, **k: run_rcp_density_improved(*a, epsilon=0.05, mode='clip', clip_max=5.0, mix_ratio=0.5, **k)),
     ]
     
     for ds_name, loader in dataset_loaders.items():
@@ -73,7 +80,10 @@ def run_benchmark_suite():
             
         results = {m[0]: [] for m in methods}
         
+        total_start_time = time.time()
+
         for seed in range(n_seeds):
+            seed_start_time = time.time()
             print(f"Seed {seed}...", end="", flush=True)
             X_tr, Y_tr, X_cal, Y_cal, X_te, Y_te = rcp_protocol_split(X, Y, seed=42+seed)
             
@@ -87,14 +97,18 @@ def run_benchmark_suite():
                     results[name].append(res)
                 except Exception as e:
                     print(f" Err({name}:{e})", end="")
-            print(" Done")
-            
+
+            seed_duration = time.time() - seed_start_time
+            total_elapsed = time.time() - total_start_time
+            # print(" Done")
+            print(f" Done (Seed Time: {seed_duration/60:.2f}m | Total Time: {total_elapsed/60:.2f}m)")
+
         # Summary & Save
         summary_rows = []
         for name, mets in results.items():
             if not mets: continue
             row = {'Method': name}
-            for k in ['Cov', 'Size', 'WSC', 'CCE']:
+            for k in ['Cov', 'Size', 'WSC', 'MSCE_10', 'MSCE_30', "L1-ERT", "L2-ERT"]:
                 vals = [m[k] for m in mets]
                 row[k] = f"{np.mean(vals):.4f} ± {np.std(vals):.4f}"
             summary_rows.append(row)

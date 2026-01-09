@@ -25,8 +25,8 @@ The codebase is organized as follows:
 .
 ├── main.py             # Entry point: runs the full benchmark suite
 ├── methods.py          # High-level wrappers for CPCP, CQR, PLCP, RCP, etc.
-├── models.py           # Neural network architectures (inc. MonotonicThreeHeadNet)
-├── trainers.py         # Training loops (inc. finetune_main_head_improved)
+├── models.py           # Neural network architectures 
+├── trainers.py         # Training loops 
 ├── losses.py           # Pinball loss, ALD loss, Multivariate NLL
 ├── metrics.py          # Metrics: WSC, CCE, Coverage, Size
 ├── data_utils.py       # Data loaders and preprocessing
@@ -87,15 +87,32 @@ methods = [
 ## 📊 Methods Implemented
 
 - **Split**: Standard Split Conformal Prediction.
-- **CQR**: Conformalized Quantile Regression (Pinball & ALD variants).
+
+- **CQR**: Conformalized Quantile Regression 
+
 - **RCP**: Rectified Conformal Prediction.
+
 - **Gaussian Scoring**: Multivariate Gaussian NLL minimization.
+
 - **PLCP**: Partition Learning Conformal Prediction ($K=20, 50$).
+
 - **CPCP (Ours)**:
+
   - `CPCP-Split`: Vanilla implementation.
   - `CPCP-Clip`: With weight clipping for stability.
   - `CPCP-Mix`: With loss mixing.
   - `CPCP-Clip+Mix`: The robust version recommended in the paper.
+
+- **Ablation Baselines**
+
+  - `RCP/CQR-ALD`: Substitute standard quantile regression with MLE of ALD 
+
+  - `RCP-MultiHead`: Only co-training three quantiles 
+
+  - `CPCP-delta`: Different $\delta$ settings ($\delta=0.01,0.05$)
+
+    
+
 
 ## 🔗 Citation
 
@@ -115,3 +132,12 @@ Code snippet
 ## 📄 License
 
 This project is licensed under the MIT License.
+
+
+
+## 📝 Supplementary Notes
+
+- We observed that the **Gaussian Scoring** baseline exhibits numerical instability on the **WEC** dataset (likely due to high dimensionality and label correlations) for exactly one random seed. Consequently, we excluded this seed and reported results averaged over the remaining 19 seeds. The processing details are provided in `table_gs_wec_refine.ipynb`.
+
+
+

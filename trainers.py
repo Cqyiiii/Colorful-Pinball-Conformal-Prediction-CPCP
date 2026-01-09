@@ -6,9 +6,9 @@ import pandas as pd
 from losses import *
 from utils import to_numpy
 
-def train_mean(model, x_tr, y_tr, epochs=200):
-    opt = optim.Adam(model.parameters(), lr=1e-3)
-    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, y_tr), batch_size=256, shuffle=True)
+def train_mean(model, x_tr, y_tr, epochs=100):
+    opt = optim.Adam(model.parameters(), lr=2e-3)
+    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, y_tr), batch_size=1024, shuffle=True)
     model.train()
     for _ in range(epochs):
         for bx, by in loader:
@@ -18,9 +18,9 @@ def train_mean(model, x_tr, y_tr, epochs=200):
             opt.step()
     return model
 
-def train_cqr_nd(model, x_tr, y_tr, taus, mode='pinball', epochs=200):
-    opt = optim.Adam(model.parameters(), lr=1e-3)
-    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, y_tr), batch_size=256, shuffle=True)
+def train_cqr_nd(model, x_tr, y_tr, taus, mode='pinball', epochs=100):
+    opt = optim.Adam(model.parameters(), lr=2e-3)
+    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, y_tr), batch_size=1024, shuffle=True)
     D = y_tr.shape[1]
     model.train()
     for _ in range(epochs):
@@ -36,9 +36,9 @@ def train_cqr_nd(model, x_tr, y_tr, taus, mode='pinball', epochs=200):
             opt.step()
     return model
 
-def train_rcp_score(model, x_tr, s_tr, tau, mode='pinball', epochs=200):
-    opt = optim.Adam(model.parameters(), lr=1e-3)
-    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, s_tr), batch_size=256, shuffle=True)
+def train_rcp_score(model, x_tr, s_tr, tau, mode='pinball', epochs=100):
+    opt = optim.Adam(model.parameters(), lr=2e-3)
+    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, s_tr), batch_size=1024, shuffle=True)
     model.train()
     for _ in range(epochs):
         for bx, bs in loader:
@@ -50,9 +50,9 @@ def train_rcp_score(model, x_tr, s_tr, tau, mode='pinball', epochs=200):
             opt.step()
     return model
 
-def train_plcp_model(model, x_tr, s_tr, target_tau, loss_type='pinball', epochs=200):
-    opt = optim.Adam(model.parameters(), lr=1e-3)
-    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, s_tr), batch_size=256, shuffle=True)
+def train_plcp_model(model, x_tr, s_tr, target_tau, loss_type='pinball', epochs=100):
+    opt = optim.Adam(model.parameters(), lr=2e-3)
+    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, s_tr), batch_size=1024, shuffle=True)
     model.train()
     for _ in range(epochs):
         for bx, bs in loader:
@@ -67,9 +67,9 @@ def train_plcp_model(model, x_tr, s_tr, target_tau, loss_type='pinball', epochs=
             opt.step()
     return model
 
-def train_multivariate_gaussian(model, x_tr, y_tr, epochs=200):
-    opt = optim.Adam(model.parameters(), lr=1e-3)
-    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, y_tr), batch_size=256, shuffle=True)
+def train_multivariate_gaussian(model, x_tr, y_tr, epochs=100):
+    opt = optim.Adam(model.parameters(), lr=2e-3)
+    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, y_tr), batch_size=1024, shuffle=True)
     model.train()
     for _ in range(epochs):
         for bx, by in loader:
@@ -81,12 +81,12 @@ def train_multivariate_gaussian(model, x_tr, y_tr, epochs=200):
     return model
 
 
-def train_multivariate_gaussian_robust(model, x_tr, y_tr, epochs=200):
+def train_multivariate_gaussian_robust(model, x_tr, y_tr, epochs=100):
     # lower learning rate
     opt = optim.Adam(model.parameters(), lr=2e-4)     
     loader = torch.utils.data.DataLoader(
         torch.utils.data.TensorDataset(x_tr, y_tr), 
-        batch_size=256, 
+        batch_size=1024, 
         shuffle=True
     )    
     model.train()
@@ -107,9 +107,9 @@ def train_multivariate_gaussian_robust(model, x_tr, y_tr, epochs=200):
     return model
 
 
-def train_rcp_multi_head(model, x_tr, s_tr, taus_list, epochs=200):
-    opt = optim.Adam(model.parameters(), lr=1e-3)
-    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, s_tr), batch_size=256, shuffle=True)
+def train_rcp_multi_head(model, x_tr, s_tr, taus_list, epochs=100):
+    opt = optim.Adam(model.parameters(), lr=2e-3)
+    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, s_tr), batch_size=1024, shuffle=True)
     model.train()
     for _ in range(epochs):
         for bx, bs in loader:
@@ -122,9 +122,9 @@ def train_rcp_multi_head(model, x_tr, s_tr, taus_list, epochs=200):
             opt.step()
     return model
 
-def train_three_head_base(model, x_tr, s_tr, taus_list, epochs=200):
-    opt = optim.Adam(model.parameters(), lr=1e-3)
-    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, s_tr), batch_size=256, shuffle=True)
+def train_three_head_base(model, x_tr, s_tr, taus_list, epochs=100):
+    opt = optim.Adam(model.parameters(), lr=2e-3)
+    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, s_tr), batch_size=1024, shuffle=True)
     model.train()
     tau_lo, tau_main, tau_hi = taus_list
     for _ in range(epochs):
@@ -139,7 +139,7 @@ def train_three_head_base(model, x_tr, s_tr, taus_list, epochs=200):
             opt.step()
     return model
 
-def finetune_main_head_improved(model, x_tr, s_tr, target_tau, epsilon, epochs=200, 
+def finetune_main_head_improved(model, x_tr, s_tr, target_tau, epsilon, epochs=100, 
                                 mode='vanilla', clip_max=5.0, mix_ratio=0.5, 
                                 save_weights_path=None):
     """
@@ -173,8 +173,8 @@ def finetune_main_head_improved(model, x_tr, s_tr, target_tau, epsilon, epochs=2
             df_w.to_csv(save_weights_path, index=False)
     
     # Training Loop
-    opt = optim.Adam(model.head_main.parameters(), lr=1e-3)
-    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, s_tr), batch_size=256, shuffle=True)
+    opt = optim.Adam(model.head_main.parameters(), lr=2e-3)
+    loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_tr, s_tr), batch_size=1024, shuffle=True)
     
     model.train() 
     for _ in range(epochs):

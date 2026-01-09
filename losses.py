@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
 
-# naive pinball loss
+# Naive pinball loss
 def pinball_loss(y_pred, y_true, tau):
     """Standard quantile regression loss."""
     diff = y_true - y_pred
     return torch.max(tau * diff, (tau - 1) * diff)
 
-# asymmetric laplace distribution negative log likelihood for CQR
+# Asymmetric laplace distribution negative log likelihood for CQR
 def ald_loss_cqr_nd(preds, y_true, taus):
     """Loss for CQR (N-dimensional) with Aleatoric uncertainty estimation."""
     D = y_true.shape[1]
@@ -19,7 +19,7 @@ def ald_loss_cqr_nd(preds, y_true, taus):
     nll = (loss / sigma) + 2 * torch.log(sigma)
     return nll.mean()
 
-# asymmetric laplace distribution negative log likelihood for RCP
+# Asymmetric laplace distribution negative log likelihood for RCP
 def ald_loss_rcp(preds, s_true, tau):
     """Loss for Rectified Conformal Prediction score regression."""
     q = preds[:, 0:1]
